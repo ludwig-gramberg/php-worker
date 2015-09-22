@@ -11,17 +11,16 @@
 
 WORKER_NAME=php_worker
 WORKER_USER=www-data
-WORKER_LOGFILE="/var/log/apache2/php_worker.log"
-CFGFILE=/etc/php_worker.conf
-PIDFILE=/var/run/php_worker.pid
-RUNCMD="/usr/bin/php -f /usr/bin/php_worker.php $PIDFILE $CFGFILE"
+CFG_FILE=/etc/php_worker.conf
+PID_FILE=/var/run/php_worker.pid
+RUNCMD="/usr/bin/php -f /usr/bin/php_worker.php $PID_FILE $CFG_FILE"
 
 worker_running() {
-    if [ ! -f "${PIDFILE}" ]
+    if [ ! -f "${PID_FILE}" ]
     then
     	exit 1
     else
-    	PID="$(head -n 1 "${PIDFILE}")"
+    	PID="$(head -n 1 "${PID_FILE}")"
 
     	if [ "${PID}" == "" ]
     	then
@@ -49,15 +48,10 @@ worker_start() {
 		echo "$WORKER_NAME already running"
 	else
 		echo "Starting $WORKER_NAME..."
-		if [ ! -f "$WORKER_LOGFILE" ]
-		then
-			touch $WORKER_LOGFILE
-			chown "$WORKER_USER:$WORKER_USER" $WORKER_LOGFILE
-		fi
-		PID0=`su $WORKER_USER -c "$RUNCMD" >> $WORKER_LOGFILE 2>&1 & echo $!`
+		PID0=`su $WORKER_USER -c "$RUNCMD" > /dev/null 2>&1 & echo $!`
 		PID1=$(ps --no-headers --ppid $PID0 | awk '{ print $1 }')
 		PID2=$(ps --no-headers --ppid $PID1 | awk '{ print $1 }')
-		echo $PID2 > $PIDFILE
+		echo $PID2 > $PID_FILE
 	fi
 }
 
@@ -65,7 +59,7 @@ worker_stop() {
 	echo "Stopping $WORKER_NAME..."
 	if ( worker_running )
 	then
-		PID=$(head -n 1 "${PIDFILE}")
+		PID=$(head -n 1 "${PID_FILE}")
         kill $PID
 		while kill -0 $PID >/dev/null 2>&1
 		do
@@ -73,7 +67,7 @@ worker_stop() {
 			sleep 1
 		done
 		echo ""
-		echo "" > $PIDFILE
+		echo "" > $PID_FILE
 	else
 		echo "$WORKER_NAME not running"
 	fi
