@@ -1,0 +1,105 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          php_worker
+# Required-Start:    $local_fs $remote_fs $network $syslog $named
+# Required-Stop:     $local_fs $remote_fs $network $syslog $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# X-Interactive:     true
+# Short-Description: Start/stop php_worker
+### END INIT INFO
+
+WORKER_NAME=php_worker
+WORKER_USER=www-data
+WORKER_LOGFILE="/var/log/apache2/php_worker.log"
+CFGFILE=/etc/php_worker.conf
+PIDFILE=/var/run/php_worker.pid
+RUNCMD="/usr/bin/php -f /usr/bin/php_worker.php $PIDFILE $CFGFILE"
+
+worker_running() {
+    if [ ! -f "${PIDFILE}" ]
+    then
+    	exit 1
+    else
+    	PID="$(head -n 1 "${PIDFILE}")"
+
+    	if [ "${PID}" == "" ]
+    	then
+    		exit 1
+    	else
+    		if ps -p $PID > /dev/null
+    		then
+    			PROCESSNAME=$( ps -p $PID -o command= )
+    			if [[ "$PROCESSNAME" == *"$RUNCMD" ]]
+    			then
+    				exit 0
+    			else
+    				exit 1
+    			fi
+    		else
+    			exit 1
+    		fi
+    	fi
+    fi
+}
+
+worker_start() {
+	if ( worker_running )
+	then
+		echo "$WORKER_NAME already running"
+	else
+		echo "Starting $WORKER_NAME..."
+		if [ ! -f "$WORKER_LOGFILE" ]
+		then
+			touch $WORKER_LOGFILE
+			chown "$WORKER_USER:$WORKER_USER" $WORKER_LOGFILE
+		fi
+		PID0=`su $WORKER_USER -c "$RUNCMD" >> $WORKER_LOGFILE 2>&1 & echo $!`
+		PID1=$(ps --no-headers --ppid $PID0 | awk '{ print $1 }')
+		PID2=$(ps --no-headers --ppid $PID1 | awk '{ print $1 }')
+		echo $PID2 > $PIDFILE
+	fi
+}
+
+worker_stop() {
+	echo "Stopping $WORKER_NAME..."
+	if ( worker_running )
+	then
+		PID=$(head -n 1 "${PIDFILE}")
+        kill $PID
+		while kill -0 $PID >/dev/null 2>&1
+		do
+			echo -n "."
+			sleep 1
+		done
+		echo ""
+		echo "" > $PIDFILE
+	else
+		echo "$WORKER_NAME not running"
+	fi
+}
+
+case "$1" in
+status)
+        echo "Checking $WORKER_NAME..."
+        if ( worker_running )
+        then
+        	echo "$WORKER_NAME running"
+        else
+        	echo "$WORKER_NAME not running"
+        fi
+;;
+start)
+	echo $(worker_start)
+;;
+stop)
+	echo $(worker_stop)
+;;
+restart)
+	echo $(worker_stop)
+	echo $(worker_start)
+;;
+*)
+	echo "Usage: $0 {status|start|stop|restart}"
+	exit 1
+esac

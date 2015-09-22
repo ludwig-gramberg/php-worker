@@ -1,0 +1,6 @@
+check process php_worker with pidfile /var/run/php_worker.pid
+   group app
+   alert admin@server but not on { pid ppid nonexist }
+   start program = "/etc/init.d/php_worker start"
+   stop  program = "/etc/init.d/php_worker stop"
+   if 5 restarts within 5 cycles then timeout
