@@ -2,6 +2,6 @@
 
 1. copy init.d-script to /etc/init.d/php_worker
 2. copy monit-conf to /etc/monit/conf.d/php_worker
-3. copy php_workert.php to /usr/bin/php_worker.php
+3. copy php_worker.php to /usr/bin/php_worker.php
 4. place sample cfg-file in /etc/php_worker.conf and edit
 5. restart monit
